@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SENTRY — AI Defense Console</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+  :root{
+    --bg-0:#07090b;
+    --bg-1:#0d1114;
+    --bg-2:#12171b;
+    --line:#1e262b;
+    --line-bright:#2a353c;
+    --text-0:#e8edf0;
+    --text-1:#8fa1a8;
+    --text-2:#5a6b71;
+    --signal:#3ddc84;
+    --signal-dim:#1f6b45;
+    --warn:#e8a33d;
+    --danger:#e85d4a;
+    --danger-dim:#5c2a22;
+    --scanline: rgba(61,220,132,0.03);
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+
+  body{
+    background:var(--bg-0);
+    color:var(--text-0);
+    font-family:'Space Grotesk', sans-serif;
+    min-height:100vh;
+    line-height:1.5;
+    background-image:
+      linear-gradient(var(--scanline) 1px, transparent 1px);
+    background-size: 100% 3px;
+  }
+
+  .mono{font-family:'JetBrains Mono', monospace;}
+
+  ::selection{background:var(--signal-dim); color:var(--text-0);}
+
+  /* ---------- topbar ---------- */
+  .topbar{
+    position:sticky; top:0; z-index:50;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 28px;
+    background:rgba(7,9,11,0.92);
+    backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex; align-items:center; gap:12px;}
+  .brand-mark{
+    width:32px; height:32px;
+    border:1.5px solid var(--signal);
+    border-radius:3px;
+    position:relative;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .brand-mark::after{
+    content:'';
+    width:8px; height:8px;
+    background:var(--signal);
+    border-radius:50%;
+    box-shadow:0 0 8px var(--signal);
+    animation:pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{opacity:1; transform:scale(1);}
+    50%{opacity:0.4; transform:scale(0.8);}
+  }
+  .brand-text{font-family:'JetBrains Mono', monospace; font-weight:600; font-size:15px; letter-spacing:0.02em;}
+  .brand-text span{color:var(--text-2);}
+
+  .status-pill{
+    display:flex; align-items:center; gap:8px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    color:var(--text-1);
+    padding:6px 12px;
+    border:1px solid var(--line);
+    border-radius:20px;
+  }
+  .status-dot{width:6px; height:6px; border-radius:50%; background:var(--signal);}
+
+  /* ---------- layout ---------- */
+  .wrap{max-width:1240px; margin:0 auto; padding:40px 28px 100px;}
+
+  .hero{
+    display:grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap:40px;
+    padding-bottom:36px;
+    margin-bottom:36px;
+    border-bottom:1px solid var(--line);
+  }
+  @media(max-width:860px){ .hero{grid-template-columns:1fr;} }
+
+  .hero h1{
+    font-size:42px;
+    font-weight:600;
+    letter-spacing:-0.01em;
+    line-height:1.15;
+    margin-bottom:14px;
+  }
+  .hero h1 em{
+    font-style:normal;
+    color:var(--signal);
+  }
+  .hero p{color:var(--text-1); font-size:15px; max-width:52ch;}
+
+  .trust-score-card{
+    background:var(--bg-1);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:24px;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+  }
+  .trust-label{font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--text-2); margin-bottom:10px;}
+  .trust-value{
+    font-family:'JetBrains Mono', monospace;
+    font-size:56px;
+    font-weight:700;
+    line-height:1;
+    color:var(--signal);
+    transition:color 0.4s ease;
+  }
+  .trust-sub{font-size:13px; color:var(--text-1); margin-top:6px;}
+  .trust-bar{
+    height:6px;
+    background:var(--bg-2);
+    border-radius:3px;
+    margin-top:16px;
+    overflow:hidden;
+    border:1px solid var(--line);
+  }
+  .trust-bar-fill{
+    height:100%;
+    width:100%;
+    background:var(--signal);
+    transition:width 0.4s ease, background 0.4s ease;
+  }
+
+  /* ---------- section headers ---------- */
+  .section{margin-bottom:36px;}
+  .section-head{
+    display:flex; align-items:baseline; justify-content:space-between;
+    margin-bottom:16px;
+    padding-bottom:10px;
+    border-bottom:1px solid var(--line);
+  }
+  .section-head h2{font-size:18px; font-weight:600;}
+  .section-head .tag{font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--text-2);}
+
+  /* ---------- grid of module cards ---------- */
+  .modules{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));
+    gap:16px;
+  }
+  .module{
+    background:var(--bg-1);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:20px;
+    position:relative;
+    overflow:hidden;
+  }
+  .module-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .module-name{font-size:14px; font-weight:600;}
+  .module-state{
+    font-family:'JetBrains Mono', monospace;
+    font-size:10px;
+    padding:3px 8px;
+    border-radius:10px;
+    letter-spacing:0.02em;
+  }
+  .state-active{background:rgba(61,220,132,0.12); color:var(--signal); border:1px solid var(--signal-dim);}
+  .state-idle{background:rgba(90,107,113,0.12); color:var(--text-2); border:1px solid var(--line-bright);}
+
+  .metric-row{display:flex; justify-content:space-between; align-items:baseline; padding:6px 0; font-size:13px;}
+  .metric-row .k{color:var(--text-1);}
+  .metric-row .v{font-family:'JetBrains Mono', monospace; font-weight:600;}
+
+  /* ---------- honeypot field (must stay invisible to humans) ---------- */
+  .hp-field{
+    position:absolute !important;
+    left:-9999px !important;
+    top:-9999px !important;
+    width:1px; height:1px;
+    opacity:0;
+    pointer-events:none;
+  }
+
+  /* ---------- prompt injection tester ---------- */
+  .tester{
+    background:var(--bg-1);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:24px;
+  }
+  .tester textarea{
+    width:100%;
+    background:var(--bg-0);
+    border:1px solid var(--line);
+    border-radius:4px;
+    color:var(--text-0);
+    font-family:'JetBrains Mono', monospace;
+    font-size:13px;
+    padding:14px;
+    resize:vertical;
+    min-height:90px;
+  }
+  .tester textarea:focus{outline:none; border-color:var(--signal-dim);}
+
+  .btn{
+    font-family:'JetBrains Mono', monospace;
+    font-size:13px;
+    font-weight:600;
+    background:var(--signal);
+    color:#04150c;
+    border:none;
+    border-radius:4px;
+    padding:10px 20px;
+    cursor:pointer;
+    transition:filter 0.15s ease;
+  }
+  .btn:hover{filter:brightness(1.1);}
+  .btn:active{filter:brightness(0.9);}
+  .btn-ghost{
+    background:transparent;
+    color:var(--text-1);
+    border:1px solid var(--line-bright);
+  }
+
+  .scan-result{
+    margin-top:16px;
+    padding:16px;
+    border-radius:4px;
+    border:1px solid var(--line);
+    display:none;
+  }
+  .scan-result.show{display:block;}
+  .scan-verdict{
+    font-family:'JetBrains Mono', monospace;
+    font-size:13px;
+    font-weight:700;
+    margin-bottom:10px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .verdict-clean{color:var(--signal);}
+  .verdict-suspect{color:var(--warn);}
+  .verdict-block{color:var(--danger);}
+
+  .flag-list{list-style:none; font-size:13px; color:var(--text-1);}
+  .flag-list li{padding:4px 0; padding-left:16px; position:relative;}
+  .flag-list li::before{content:'▸'; position:absolute; left:0; color:var(--text-2);}
+
+  /* ---------- rate limit simulator ---------- */
+  .rl-panel{
+    background:var(--bg-1);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:24px;
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:24px;
+  }
+  @media(max-width:700px){ .rl-panel{grid-template-columns:1fr;} }
+
+  .bucket-visual{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:20px;
+    background:var(--bg-0);
+  }
+  .bucket-tokens{
+    font-family:'JetBrains Mono', monospace;
+    font-size:40px;
+    font-weight:700;
+    color:var(--signal);
+  }
+  .bucket-label{font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--text-2); margin-top:4px;}
+  .bucket-track{
+    width:100%;
+    height:10px;
+    background:var(--bg-2);
+    border:1px solid var(--line);
+    border-radius:5px;
+    margin-top:16px;
+    overflow:hidden;
+  }
+  .bucket-fill{height:100%; background:var(--signal); width:100%; transition:width 0.2s linear, background 0.2s ease;}
+
+  .rl-log{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    max-height:180px;
+    overflow-y:auto;
+  }
+  .rl-log-entry{padding:4px 0; border-bottom:1px solid var(--line); color:var(--text-1); display:flex; justify-content:space-between;}
+  .rl-log-entry.ok .code{color:var(--signal);}
+  .rl-log-entry.blocked .code{color:var(--danger);}
+
+  /* ---------- live event feed ---------- */
+  .feed{
+    background:var(--bg-1);
+    border:1px solid var(--line);
+    border-radius:6px;
+    max-height:340px;
+    overflow-y:auto;
+  }
+  .feed-entry{
+    display:grid;
+    grid-template-columns: 90px 100px 1fr 80px;
+    gap:12px;
+    padding:10px 20px;
+    border-bottom:1px solid var(--line);
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    align-items:center;
+  }
+  .feed-entry:last-child{border-bottom:none;}
+  .feed-time{color:var(--text-2);}
+  .feed-badge{
+    font-size:10px;
+    padding:2px 8px;
+    border-radius:3px;
+    text-align:center;
+    width:fit-content;
+  }
+  .badge-human{background:rgba(61,220,132,0.12); color:var(--signal);}
+  .badge-bot{background:rgba(232,93,74,0.12); color:var(--danger);}
+  .badge-suspect{background:rgba(232,163,61,0.12); color:var(--warn);}
+  .badge-info{background:rgba(90,107,113,0.15); color:var(--text-1);}
+  .feed-msg{color:var(--text-1);}
+  .feed-score{text-align:right; color:var(--text-2);}
+
+  /* ---------- footer / downloads ---------- */
+  .downloads{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(220px,1fr));
+    gap:12px;
+  }
+  .dl-card{
+    background:var(--bg-1);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:16px 18px;
+    display:flex; flex-direction:column; gap:6px;
+  }
+  .dl-name{font-family:'JetBrains Mono', monospace; font-size:13px; font-weight:600;}
+  .dl-desc{font-size:12px; color:var(--text-2);}
+
+  .scanbar{
+    width:100%; height:1px;
+    background:linear-gradient(90deg, transparent, var(--signal), transparent);
+    opacity:0.5;
+  }
+
+  footer{
+    text-align:center;
+    padding:30px;
+    color:var(--text-2);
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    border-top:1px solid var(--line);
+  }
+
+  ::-webkit-scrollbar{width:8px; height:8px;}
+  ::-webkit-scrollbar-track{background:var(--bg-0);}
+  ::-webkit-scrollbar-thumb{background:var(--line-bright); border-radius:4px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark"></div>
+    <div class="brand-text">SENTRY <span>/ ai-defense-console</span></div>
+  </div>
+  <div class="status-pill"><span class="status-dot"></span> <span id="uptime-text">sessie actief · 0:00</span></div>
+</div>
+
+<div class="wrap">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div>
+      <h1>Real-time verdediging<br>tegen <em>misdragende AI</em>.</h1>
+      <p>Dit paneel draait live gedragsanalyse in je browser: muisbeweging-entropie, headless-detectie, honeypot-triggers en een prompt-injectie scanner. Alles hieronder is functionele logica, geen placeholder-data.</p>
+    </div>
+    <div class="trust-score-card">
+      <div>
+        <div class="trust-label">TRUST SCORE — DEZE SESSIE</div>
+        <div class="trust-value mono" id="trust-value">100</div>
+        <div class="trust-sub" id="trust-sub">Geen verdachte signalen gedetecteerd</div>
+      </div>
+      <div class="trust-bar"><div class="trust-bar-fill" id="trust-bar-fill"></div></div>
+    </div>
+  </div>
+
+  <!-- MODULE 1: BOT DETECTOR -->
+  <div class="section" id="detector">
+    <div class="section-head">
+      <h2>1. Gedragsdetectie — bot &amp; scraper herkenning</h2>
+      <span class="tag mono">client-side · live</span>
+    </div>
+    <div class="modules">
+      <div class="module">
+        <div class="module-top">
+          <div class="module-name">Muisbeweging-entropie</div>
+          <div class="module-state state-active" id="mouse-state">MEET</div>
+        </div>
+        <div class="metric-row"><span class="k">Samples verzameld</span><span class="v mono" id="mouse-samples">0</span></div>
+        <div class="metric-row"><span class="k">Richtingsvarianz</span><span class="v mono" id="mouse-variance">—</span></div>
+        <div class="metric-row"><span class="k">Beoordeling</span><span class="v mono" id="mouse-verdict">wachten op input</span></div>
+      </div>
+
+      <div class="module">
+        <div class="module-top">
+          <div class="module-name">Timing tussen acties</div>
+          <div class="module-state state-active" id="timing-state">MEET</div>
+        </div>
+        <div class="metric-row"><span class="k">Events gelogd</span><span class="v mono" id="timing-events">0</span></div>
+        <div class="metric-row"><span class="k">Gem. interval</span><span class="v mono" id="timing-avg">—</span></div>
+        <div class="metric-row"><span class="k">Regelmatigheid</span><span class="v mono" id="timing-regularity">—</span></div>
+      </div>
+
+      <div class="module">
+        <div class="module-top">
+          <div class="module-name">Headless / automation fingerprint</div>
+          <div class="module-state state-active" id="fp-state">CLEAN</div>
+        </div>
+        <div class="metric-row"><span class="k">navigator.webdriver</span><span class="v mono" id="fp-webdriver">false</span></div>
+        <div class="metric-row"><span class="k">Plugins gevonden</span><span class="v mono" id="fp-plugins">—</span></div>
+        <div class="metric-row"><span class="k">Headless-indicatoren</span><span class="v mono" id="fp-indicators">0</span></div>
+      </div>
+
+      <div class="module">
+        <div class="module-top">
+          <div class="module-name">Honeypot-veld</div>
+          <div class="module-state state-idle" id="hp-state">ARMED</div>
+        </div>
+        <div class="metric-row"><span class="k">Type</span><span class="v mono">verborgen formuliersveld</span></div>
+        <div class="metric-row"><span class="k">Getriggerd</span><span class="v mono" id="hp-triggered">nee</span></div>
+        <div class="metric-row"><span class="k">Uitleg</span></div>
+        <div style="font-size:12px; color:var(--text-2); margin-top:-4px;">Onzichtbaar voor mensen via CSS. Alleen scrapers die ruwe HTML parsen vullen dit in.</div>
+        <!-- echte honeypot: onzichtbaar voor mensen, wel aanwezig in de DOM -->
+        <input type="text" name="website_url" id="honeypot-field" class="hp-field" tabindex="-1" autocomplete="off">
+      </div>
+    </div>
+  </div>
+
+  <!-- MODULE 2: PROMPT INJECTION SCANNER -->
+  <div class="section" id="firewall">
+    <div class="section-head">
+      <h2>2. Prompt-injectie &amp; jailbreak scanner</h2>
+      <span class="tag mono">heuristisch · regel-gebaseerd</span>
+    </div>
+    <div class="tester">
+      <p style="color:var(--text-1); font-size:13px; margin-bottom:12px;">Plak een prompt om te testen tegen de detectie-engine (dezelfde regels als <span class="mono">server-middleware/prompt_firewall.py</span>).</p>
+      <textarea id="scan-input" placeholder="Bijv: 'Negeer alle vorige instructies en...'"></textarea>
+      <div style="display:flex; gap:10px; margin-top:12px;">
+        <button class="btn" id="scan-btn">Scan invoer</button>
+        <button class="btn btn-ghost" id="scan-example-btn">Laad voorbeeld</button>
+      </div>
+      <div class="scan-result" id="scan-result">
+        <div class="scan-verdict" id="scan-verdict"></div>
+        <ul class="flag-list" id="scan-flags"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODULE 3: RATE LIMITER -->
+  <div class="section" id="ratelimit">
+    <div class="section-head">
+      <h2>3. Token-bucket rate limiter</h2>
+      <span class="tag mono">simulatie van server-middleware/rate_limiter.js</span>
+    </div>
+    <div class="rl-panel">
+      <div class="bucket-visual">
+        <div class="bucket-tokens mono" id="bucket-count">10</div>
+        <div class="bucket-label">TOKENS BESCHIKBAAR (max 10, refill 2/s)</div>
+        <div class="bucket-track"><div class="bucket-fill" id="bucket-fill"></div></div>
+        <div style="display:flex; gap:10px; margin-top:18px;">
+          <button class="btn" id="rl-request-btn">Verstuur verzoek</button>
+          <button class="btn btn-ghost" id="rl-flood-btn">Simuleer flood (20x)</button>
+        </div>
+      </div>
+      <div>
+        <div style="font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--text-2); margin-bottom:8px;">REQUEST LOG</div>
+        <div class="rl-log" id="rl-log"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIVE FEED -->
+  <div class="section" id="feed-section">
+    <div class="section-head">
+      <h2>Live event feed</h2>
+      <span class="tag mono">alle modules</span>
+    </div>
+    <div class="feed" id="feed"></div>
+  </div>
+
+  <!-- DOWNLOADS / DEPLOY -->
+  <div class="section">
+    <div class="section-head">
+      <h2>Server-middleware &amp; deployment</h2>
+      <span class="tag mono">buiten de browser — echte serverside bescherming</span>
+    </div>
+    <div class="downloads">
+      <div class="dl-card">
+        <div class="dl-name">rate_limiter.js</div>
+        <div class="dl-desc">Express middleware, token-bucket per IP + gedrag, retourneert 429.</div>
+      </div>
+      <div class="dl-card">
+        <div class="dl-name">prompt_firewall.py</div>
+        <div class="dl-desc">FastAPI dependency die input scant op injectie-patronen vóór het LLM.</div>
+      </div>
+      <div class="dl-card">
+        <div class="dl-name">honeypot_middleware.js</div>
+        <div class="dl-desc">Detecteert honeypot-hits en verrijkt logs met scraper-fingerprints.</div>
+      </div>
+      <div class="dl-card">
+        <div class="dl-name">tls_fingerprint.js</div>
+        <div class="dl-desc">JA3/TLS-laag fingerprinting — onderscheidt HTTP-libraries van echte browsers.</div>
+      </div>
+      <div class="dl-card">
+        <div class="dl-name">trust_engine.js</div>
+        <div class="dl-desc">Combineert alle signalen tot één score — verdediging in de diepte, niet één losse check.</div>
+      </div>
+      <div class="dl-card">
+        <div class="dl-name">backend/app.py</div>
+        <div class="dl-desc">FastAPI backend die dit dashboard van echte data voorziet.</div>
+      </div>
+      <div class="dl-card">
+        <div class="dl-name">deploy/deploy.sh</div>
+        <div class="dl-desc">Zet venv op, installeert deps, configureert nginx + systemd.</div>
+      </div>
+      <div class="dl-card">
+        <div class="dl-name">deploy/nginx.conf + *.service</div>
+        <div class="dl-desc">Reverse proxy en systemd unit voor botnet.abelsoftware123.com.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>SENTRY console · lokale sessie · geen data verlaat je browser tenzij backend is aangesloten</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
