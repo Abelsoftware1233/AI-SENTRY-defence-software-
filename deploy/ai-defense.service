@@ -1,0 +1,34 @@
+# ai-defense.service — systemd unit voor SENTRY AI Defense Console
+#
+# Dit bestand is een TEMPLATE. deploy.sh kopieert dit naar
+# /etc/systemd/system/ai-defense.service en vervangt:
+#   __APP_DIR__  -> absoluut pad naar de projectmap op de server
+#   __USER__     -> de systeemgebruiker waaronder de service draait
+#
+# Beheer na installatie:
+#   sudo systemctl status ai-defense
+#   sudo systemctl restart ai-defense
+#   sudo journalctl -u ai-defense -f
+
+[Unit]
+Description=SENTRY AI Defense Console (FastAPI backend)
+After=network.target
+
+[Service]
+Type=simple
+User=__USER__
+Group=__USER__
+WorkingDirectory=__APP_DIR__/backend
+Environment="PATH=__APP_DIR__/backend/venv/bin"
+ExecStart=__APP_DIR__/backend/venv/bin/uvicorn app:app --host 127.0.0.1 --port 8000 --workers 2
+Restart=on-failure
+RestartSec=3
+
+# Basale hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
