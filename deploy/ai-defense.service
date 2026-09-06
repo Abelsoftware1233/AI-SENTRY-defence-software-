@@ -20,7 +20,7 @@ User=__USER__
 Group=__USER__
 WorkingDirectory=__APP_DIR__/backend
 Environment="PATH=__APP_DIR__/backend/venv/bin"
-ExecStart=__APP_DIR__/backend/venv/bin/uvicorn app:app --host 127.0.0.1 --port 8000 --workers 2
+ExecStart=__APP_DIR__/backend/venv/bin/uvicorn app:app --host 127.0.0.1 --port 2323 --workers 2
 Restart=on-failure
 RestartSec=3
 
